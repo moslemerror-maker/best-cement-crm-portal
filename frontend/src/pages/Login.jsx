@@ -10,7 +10,8 @@ export default function Login(){
     e.preventDefault();
     setErr('')
     try{
-      const res = await axios.post('http://localhost:4000/api/login',{ email, password })
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      const res = await axios.post(`${apiUrl}/login`,{ email, password })
       localStorage.setItem('token', res.data.token)
       window.location.href = '/dashboard'
     }catch(err){

@@ -3,11 +3,14 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const XLSX = require('xlsx');
 const { run, all, init } = require('./db');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+const upload = multer({ storage: multer.memoryStorage() });
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
@@ -47,6 +50,194 @@ async function start() {
       return res.status(401).json({ error: 'Invalid token' });
     }
   }
+
+  // Helper function to safely get value from row with multiple possible column names (case-insensitive)
+  function getValue(row, possibleKeys) {
+    // Create a normalized map of all row keys (trim and lowercase)
+    const normalizedRow = {};
+    for (const [key, value] of Object.entries(row)) {
+      const trimmedKey = key.trim();
+      normalizedRow[trimmedKey.toLowerCase()] = value;
+    }
+    
+    // Try to find matching key
+    for (const key of possibleKeys) {
+      const normalizedKey = key.trim().toLowerCase();
+      if (normalizedRow[normalizedKey] !== undefined && normalizedRow[normalizedKey] !== null && normalizedRow[normalizedKey] !== '') {
+        return normalizedRow[normalizedKey]?.toString().trim() || '';
+      }
+    }
+    return '';
+  }
+
+  // Helper function to format dates from Excel
+  function formatDate(dateValue) {
+    if (!dateValue) return '';
+    
+    // If it's already a string in proper format
+    if (typeof dateValue === 'string') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+      return dateValue;
+    }
+    
+    // If it's a number (Excel serial date)
+    if (typeof dateValue === 'number') {
+      const date = new Date((dateValue - 25569) * 86400 * 1000);
+      return date.toISOString().split('T')[0];
+    }
+    
+    return '';
+  }
+
+  // Convert formatted date ('' or 'YYYY-MM-DD') to SQL-safe value (null or string)
+  function dateOrNull(formattedDate) {
+    if (!formattedDate || formattedDate === '') return null;
+    return formattedDate;
+  }
+
+  // Bulk import from Excel (MUST be before generic :entity routes)
+  app.post('/api/import', auth, upload.fields([{ name: 'dealers', maxCount: 1 }, { name: 'employees', maxCount: 1 }]), async (req, res) => {
+    try {
+      const result = { dealers: { inserted: 0, skipped: 0, details: [] }, employees: { inserted: 0, skipped: 0, details: [] } };
+      
+      // Import dealers if file provided
+      if (req.files && req.files.dealers) {
+        const workbook = XLSX.read(req.files.dealers[0].buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        
+        console.log('📊 Dealers sheet columns:', Object.keys(rows[0] || {}));
+        
+        for (const row of rows) {
+          try {
+            const name = getValue(row, ['name']);
+            const phone = getValue(row, ['phoneNo', 'phone']);
+            
+            if (!name || !phone) {
+              result.dealers.skipped++;
+              result.dealers.details.push({ status: 'skipped', reason: !name ? 'missing name' : 'missing phone', row });
+              continue;
+            }
+            
+            // Check for duplicates
+            const exists = await all('SELECT id FROM dealers WHERE phone = $1', [phone]);
+            if (exists.length > 0) {
+              result.dealers.skipped++;
+              result.dealers.details.push({ status: 'skipped', reason: 'duplicate phone', phone, row });
+              continue;
+            }
+            
+            const email = getValue(row, ['email', 'email id']) || '';
+            const address = getValue(row, ['address']) || '';
+            const district = getValue(row, ['region', 'district']) || '';
+            const sales_promoter = getValue(row, ['associatedSalesmanName', 'salesman', 'sales_promoter']) || '';
+            const dobFormatted = formatDate(getValue(row, ['dateOfBirth', 'dob', 'birthday']));
+            const dob = dateOrNull(dobFormatted);
+            const anniversaryFormatted = formatDate(getValue(row, ['anniversaryDate', 'anniversary']));
+            const anniversary = dateOrNull(anniversaryFormatted);
+            const meta = JSON.stringify({
+              pinCode: getValue(row, ['pinCode']) || '',
+              latitude: getValue(row, ['latitude']) || '',
+              longitude: getValue(row, ['longitude']) || '',
+              area: getValue(row, ['area']) || '',
+              originalId: getValue(row, ['id']) || ''
+            });
+            
+            const created_at = new Date().toISOString();
+            await run(
+              `INSERT INTO dealers (name, address, phone, email, district, sales_promoter, dob, anniversary, meta, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              [name, address, phone, email, district, sales_promoter, dob, anniversary, meta, created_at]
+            );
+            result.dealers.inserted++;
+            result.dealers.details.push({ status: 'inserted', name, phone });
+          } catch (err) {
+            console.error('Dealer insert error:', err.message);
+            result.dealers.skipped++;
+          }
+        }
+      }
+      
+      // Import employees if file provided
+      if (req.files && req.files.employees) {
+        const workbook = XLSX.read(req.files.employees[0].buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        
+        console.log('👥 Employees sheet columns:', Object.keys(rows[0] || {}));
+        
+        for (let i = 0; i < rows.length; i++) {
+          let row = null;
+          try {
+            row = rows[i];
+            const name = getValue(row, ['Name', 'name']) || '';
+            const phone = getValue(row, ['Phone', 'phone', 'phoneNo']) || '';
+            
+            if (i < 3) {
+              console.log(`Row ${i}:`, { name, phone, allKeys: Object.keys(row) });
+            }
+            
+            if (!name) {
+              if (i < 3) console.log(`  → Skipped: Missing name`);
+              result.employees.skipped++;
+              result.employees.details.push({ rowIndex: i, status: 'skipped', reason: 'missing name', row });
+              continue;
+            }
+
+            if (!phone) {
+              if (i < 3) console.log(`  → Skipped: Missing phone`);
+              result.employees.skipped++;
+              result.employees.details.push({ rowIndex: i, status: 'skipped', reason: 'missing phone', row });
+              continue;
+            }
+            
+            // Check for duplicates  
+            const exists = await all('SELECT id FROM employees WHERE phone = $1', [phone]);
+            if (exists.length > 0) {
+              result.employees.skipped++;
+              result.employees.details.push({ rowIndex: i, status: 'skipped', reason: 'duplicate phone', phone, row });
+              continue;
+            }
+            
+            const email = getValue(row, ['email id', 'email', 'Email']) || '';
+            const area = getValue(row, ['Zone', 'zone', 'area', 'Area']) || '';
+            const district = '';
+            const birthdayFormatted = formatDate(getValue(row, ['DOJ', 'doj', 'birthday', 'dateOfBirth']));
+            const birthday = dateOrNull(birthdayFormatted);
+            const meta = JSON.stringify({
+              designation: getValue(row, ['Designation', 'designation']) || '',
+              doj: formatDate(getValue(row, ['DOJ', 'doj'])) || '',
+              originalId: getValue(row, ['Employee id', 'id']) || ''
+            });
+            
+            const created_at = new Date().toISOString();
+            await run(
+              `INSERT INTO employees (name, area, district, phone, email, birthday, meta, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [name, area, district, phone, email, birthday, meta, created_at]
+            );
+            result.employees.inserted++;
+            result.employees.details.push({ rowIndex: i, status: 'inserted', name, phone });
+            if (i < 3) console.log(`  ✓ Inserted: ${name}`);
+          } catch (err) {
+            console.error('Employee insert error:', err && err.stack ? err.stack : err);
+            result.employees.skipped++;
+            result.employees.details.push({ rowIndex: i, status: 'error', reason: err && err.message ? err.message : String(err), row });
+          }
+        }
+      }
+      
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Import failed: ' + err.message });
+    }
+  });
 
   // CRUD for entities
   app.get('/api/:entity', auth, async (req, res) => {
@@ -95,6 +286,9 @@ async function start() {
       if (entity === 'dealers') {
         const { name, address, phone, email, district, sales_promoter, dob, anniversary, meta } = req.body;
           await run(`UPDATE dealers SET name=$1,address=$2,phone=$3,email=$4,district=$5,sales_promoter=$6,dob=$7,anniversary=$8,meta=$9 WHERE id=$10`, [name,address,phone,email,district,sales_promoter,dob,anniversary,meta||'',id]);
+      } else if (entity === 'subdealers') {
+        const { name, dealer_id, area, district, potential, phone, email, birthday, meta } = req.body;
+          await run(`UPDATE subdealers SET name=$1,dealer_id=$2,area=$3,district=$4,potential=$5,phone=$6,email=$7,birthday=$8,meta=$9 WHERE id=$10`, [name,dealer_id || null, area || null, district || null, potential || null, phone || null, email || null, birthday || null, meta||'',id]);
       } else if (entity === 'employees') {
         const { name, area, district, phone, email, birthday, meta } = req.body;
           await run(`UPDATE employees SET name=$1,area=$2,district=$3,phone=$4,email=$5,birthday=$6,meta=$7 WHERE id=$8`, [name,area,district,phone,email,birthday,meta||'',id]);

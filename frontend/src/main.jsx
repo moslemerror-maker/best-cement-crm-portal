@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Dealers from './pages/Dealers'
 import Employees from './pages/Employees'
+import Import from './pages/Import'
 import './styles.css'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/dealers" element={token ? <Dealers /> : <Navigate to="/login" />} />
         <Route path="/employees" element={token ? <Employees /> : <Navigate to="/login" />} />
+        <Route path="/import" element={token ? <Import /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to={token?'/dashboard':'/login'} />} />
       </Routes>
     </BrowserRouter>

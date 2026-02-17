@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
 
-const API = 'http://localhost:4000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const ENTITIES = ['dealers','subdealers','employees']
 
 function apiClient(token){
@@ -11,7 +12,9 @@ function apiClient(token){
 export default function Dashboard(){
   const [counts,setCounts] = useState({})
   const [birthdayList,setBirthdayList] = useState([])
+  const [loading, setLoading] = useState(true)
   const [token] = useState(localStorage.getItem('token'))
+  const navigate = useNavigate()
 
   useEffect(()=>{
     if (!token) return;
@@ -24,8 +27,10 @@ export default function Dashboard(){
         setCounts(obj);
         const b = await c.get(`${API}/birthdays?days=30`);
         setBirthdayList(b.data);
+        setLoading(false);
       }catch(err){
         console.error(err);
+        setLoading(false);
       }
     }
     load();
@@ -39,21 +44,33 @@ export default function Dashboard(){
   return (
     <div className="dashboard-root">
       <header className="topbar">
-        <h1>Best Cement CRM Portal</h1>
-        <div>
-          <a className="gold-btn" href="/employees">Employees</a>
-          <a style={{marginLeft:8}} className="gold-btn" href="/dealers">Dealers</a>
-          <button style={{marginLeft:8}} className="gold-btn" onClick={logout}>Logout</button>
+        <div className="topbar-left">
+          <h1>Best Cement CRM Portal</h1>
+        </div>
+        <nav className="topbar-center">
+          <Link className="nav-link" to="/employees">Employees</Link>
+          <Link className="nav-link" to="/dealers">Dealers</Link>
+          <Link className="nav-link" to="/import">Import Data</Link>
+        </nav>
+        <div className="topbar-right">
+          <button className="gold-btn logout-btn" onClick={logout}>Logout</button>
         </div>
       </header>
       <main>
         <section className="cards">
-          {ENTITIES.map(e=> (
-            <div key={e} className="card">
-              <h3>{e === 'subdealers' ? 'Sub Dealers' : e.charAt(0).toUpperCase()+e.slice(1)}</h3>
-              <div className="count">{counts[e] || 0}</div>
-            </div>
-          ))}
+          {ENTITIES.map(e=> {
+            const label = e === 'subdealers' ? 'Sub Dealers' : e.charAt(0).toUpperCase()+e.slice(1)
+            const display = loading ? '…' : (counts[e] || 0)
+            return (
+              <div key={e} className="card gold-hover" role="button" tabIndex={0}
+                onClick={() => navigate(`/${e}`)}
+                onKeyDown={(ev)=>{ if(ev.key === 'Enter') navigate(`/${e}`) }}
+                style={{cursor:'pointer'}}>
+                <h3>{label}</h3>
+                <div className="count">{display}{loading && <span className="spinner"/>}</div>
+              </div>
+            )
+          })}
         </section>
 
         <section className="birthday-section">

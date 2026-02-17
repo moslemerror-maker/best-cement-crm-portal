@@ -24,14 +24,24 @@ body{margin:0;background:linear-gradient(180deg,var(--bg),#071827);color:#e9eef6
 .decor-title{color:var(--gold);margin:0 0 12px}
 
 .dashboard-root{min-height:100vh}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 30px;background:rgba(0,0,0,0.08)}
-.topbar h1{margin:0;font-size:20px;color:var(--gold)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 30px;background:rgba(0,0,0,0.08)}
+.topbar-left{flex:0 0 auto}
+.topbar-left h1{margin:0;font-size:20px;color:var(--gold)}
+.topbar-center{flex:1;display:flex;justify-content:center;gap:20px;align-items:center}
+.nav-link{color:var(--gold);text-decoration:none;font-weight:500;font-size:14px;transition:color .2s, text-shadow .2s;padding:6px 10px;border-radius:6px}
+.nav-link:hover{color:#ffd966;text-shadow:0 0 8px rgba(212,175,55,0.4)}
+.topbar-right{flex:0 0 auto}
+.logout-btn{padding:10px 16px}
 main{padding:28px}
 .cards{display:flex;gap:18px;margin-bottom:22px}
 .card{flex:1;padding:18px;border-radius:12px;background:linear-gradient(180deg,var(--card),rgba(7,22,36,0.6));box-shadow:0 8px 30px rgba(2,6,23,0.6);transition:transform .18s}
 .card:hover{transform:translateY(-6px)}
 .card h3{margin:0 0 6px;color:#ffd}
 .count{font-size:28px;color:var(--gold);font-weight:700}
+
+/* simple spinner */
+.spinner{width:20px;height:20px;border:3px solid rgba(255,255,255,0.08);border-top-color:var(--gold);border-radius:50%;animation:spin .9s linear infinite;display:inline-block;vertical-align:middle;margin-left:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 .birthday-section{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:16px;border-radius:12px}
 .birthday-list{list-style:none;padding:0;margin:8px 0}
