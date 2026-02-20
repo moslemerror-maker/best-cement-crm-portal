@@ -33,13 +33,22 @@ async function start() {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Missing email/password' });
     try {
-      const rows = await all('SELECT * FROM admin WHERE email = $1', [email]);
-      if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
-      const admin = rows[0];
-      const ok = await bcrypt.compare(password, admin.password);
+      const adminRows = await all('SELECT * FROM admin WHERE email = $1', [email]);
+      if (adminRows.length > 0) {
+        const admin = adminRows[0];
+        const ok = await bcrypt.compare(password, admin.password);
+        if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+        const token = jwt.sign({ id: admin.id, email: admin.email, role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
+        return res.json({ token, role: 'admin', email: admin.email });
+      }
+
+      const userRows = await all('SELECT * FROM users WHERE email = $1', [email]);
+      if (userRows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+      const user = userRows[0];
+      const ok = await bcrypt.compare(password, user.password);
       if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
-        const token = jwt.sign({ id: admin.id, email: admin.email }, JWT_SECRET, { expiresIn: '8h' });
-      res.json({ token });
+      const token = jwt.sign({ id: user.id, email: user.email, role: 'user' }, JWT_SECRET, { expiresIn: '8h' });
+      return res.json({ token, role: 'user', email: user.email, name: user.name || '' });
     } catch (err) {
       console.error(err && err.stack ? err.stack : err);
       res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
@@ -59,6 +68,15 @@ async function start() {
       return res.status(401).json({ error: 'Invalid token' });
     }
   }
+
+  function requireAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    next();
+  }
+
+  app.get('/api/me', auth, async (req, res) => {
+    res.json({ id: req.user.id, email: req.user.email, role: req.user.role || 'user' });
+  });
 
   // Helper function to safely get value from row with multiple possible column names (case-insensitive)
   function getValue(row, possibleKeys) {
@@ -245,6 +263,34 @@ async function start() {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Import failed: ' + err.message });
+    }
+  });
+
+  // User management (admin only)
+  app.get('/api/users', auth, requireAdmin, async (_req, res) => {
+    try {
+      const rows = await all('SELECT id, name, email, created_at FROM users ORDER BY created_at DESC NULLS LAST');
+      res.json(rows);
+    } catch (err) {
+      console.error(err && err.stack ? err.stack : err);
+      res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/users', auth, requireAdmin, async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Missing name/email/password' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    try {
+      const existing = await all('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.length > 0) return res.status(409).json({ error: 'User with this email already exists' });
+      const hashed = await bcrypt.hash(password, 10);
+      const created_at = new Date().toISOString();
+      const r = await run('INSERT INTO users (name, email, password, created_at) VALUES ($1, $2, $3, $4)', [name, email, hashed, created_at]);
+      res.json({ id: r.lastID, ok: true });
+    } catch (err) {
+      console.error(err && err.stack ? err.stack : err);
+      res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
     }
   });
 

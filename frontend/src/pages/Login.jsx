@@ -13,6 +13,8 @@ export default function Login(){
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
       const res = await axios.post(`${apiUrl}/login`,{ email, password })
       localStorage.setItem('token', res.data.token)
+      localStorage.setItem('role', res.data.role || 'user')
+      localStorage.setItem('userEmail', res.data.email || email)
       window.location.href = '/dashboard'
     }catch(err){
       setErr(err?.response?.data?.error || 'Login failed')

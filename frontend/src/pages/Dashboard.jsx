@@ -14,6 +14,7 @@ export default function Dashboard(){
   const [birthdayList,setBirthdayList] = useState([])
   const [loading, setLoading] = useState(true)
   const [token] = useState(localStorage.getItem('token'))
+  const [role] = useState(localStorage.getItem('role') || 'user')
   const navigate = useNavigate()
 
   useEffect(()=>{
@@ -38,6 +39,8 @@ export default function Dashboard(){
 
   function logout(){
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('userEmail');
     window.location.href = '/login';
   }
 
@@ -51,6 +54,7 @@ export default function Dashboard(){
           <Link className="nav-link" to="/employees">Employees</Link>
           <Link className="nav-link" to="/dealers">Dealers</Link>
           <Link className="nav-link" to="/import">Import Data</Link>
+          {role === 'admin' && <Link className="nav-link" to="/users">User Management</Link>}
         </nav>
         <div className="topbar-right">
           <button className="gold-btn logout-btn" onClick={logout}>Logout</button>

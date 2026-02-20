@@ -32,6 +32,14 @@ async function init() {
     password TEXT
   )`, []);
 
+  await run(`CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    email TEXT UNIQUE,
+    password TEXT,
+    created_at TIMESTAMP
+  )`, []);
+
   await run(`CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
     name TEXT,
@@ -130,6 +138,25 @@ async function init() {
     }
   } catch (e) {
     console.error('Migration check failed for dealers', e && e.stack ? e.stack : e);
+  }
+
+  // migration: ensure users columns exist
+  try {
+    const userCols = await all(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`);
+    const userNames = userCols.map(c => c.column_name);
+    const userNeeded = [
+      ['name', 'TEXT'],
+      ['email', 'TEXT'],
+      ['password', 'TEXT'],
+      ['created_at', 'TIMESTAMP']
+    ];
+    for (const [col, type] of userNeeded) {
+      if (!userNames.includes(col)) {
+        await run(`ALTER TABLE users ADD COLUMN ${col} ${type}`, []);
+      }
+    }
+  } catch (e) {
+    console.error('Migration check failed for users', e && e.stack ? e.stack : e);
   }
 }
 
