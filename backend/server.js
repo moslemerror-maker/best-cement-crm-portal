@@ -20,6 +20,15 @@ const ALLOWED_ENTITIES = ['employees','dealers','subdealers','promoters'];
 async function start() {
   await init();
 
+  // Public health endpoints for uptime monitoring (no auth)
+  app.get('/', (_req, res) => {
+    res.status(200).json({ ok: true, service: 'best-cement-crm-backend' });
+  });
+
+  app.get('/api/health', (_req, res) => {
+    res.status(200).json({ ok: true, status: 'up' });
+  });
+
   app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Missing email/password' });
