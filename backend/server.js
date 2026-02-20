@@ -294,6 +294,43 @@ async function start() {
     }
   });
 
+  app.put('/api/users/:id', auth, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { name, email, password } = req.body;
+    if (!name || !email) return res.status(400).json({ error: 'Missing name/email' });
+    try {
+      const existing = await all('SELECT id FROM users WHERE email = $1 AND id != $2', [email, id]);
+      if (existing.length > 0) return res.status(409).json({ error: 'User with this email already exists' });
+
+      if (password && password.trim().length > 0) {
+        if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        const hashed = await bcrypt.hash(password, 10);
+        await run('UPDATE users SET name = $1, email = $2, password = $3 WHERE id = $4', [name, email, hashed, id]);
+      } else {
+        await run('UPDATE users SET name = $1, email = $2 WHERE id = $3', [name, email, id]);
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(err && err.stack ? err.stack : err);
+      res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
+    }
+  });
+
+  app.delete('/api/users/:id', auth, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+      if (String(req.user.id) === String(id)) {
+        return res.status(400).json({ error: 'Admin cannot delete own account' });
+      }
+      await run('DELETE FROM users WHERE id = $1', [id]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(err && err.stack ? err.stack : err);
+      res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
+    }
+  });
+
   // CRUD for entities
   app.get('/api/:entity', auth, async (req, res) => {
     const { entity } = req.params;
