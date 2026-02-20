@@ -353,20 +353,24 @@ async function start() {
       let r;
       if (entity === 'dealers') {
         const { name, address, phone, email, district, sales_promoter, dob, anniversary, meta } = req.body;
-          r = await run(`INSERT INTO dealers (name,address,phone,email,district,sales_promoter,dob,anniversary,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [name,address,phone,email,district,sales_promoter,dob,anniversary,meta||'',created_at]);
+        console.log('Dealers POST:', { name, address, phone, email, district, sales_promoter, dob, anniversary });
+        r = await run(`INSERT INTO dealers (name,address,phone,email,district,sales_promoter,dob,anniversary,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [name,address,phone,email,district,sales_promoter,dob,anniversary,meta||'',created_at]);
       } else if (entity === 'subdealers') {
         const { name, dealer_id, area, district, potential, phone, email, birthday, meta } = req.body;
+        console.log('SubDealers POST:', { name, dealer_id, area, district, potential, phone, email, birthday });
         r = await run(`INSERT INTO subdealers (name,dealer_id,area,district,potential,phone,email,birthday,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [name,dealer_id || null, area || null, district || null, potential || null, phone || null, email || null, birthday || null, meta || '', created_at]);
       } else if (entity === 'employees') {
         const { name, area, district, phone, email, birthday, meta } = req.body;
-          r = await run(`INSERT INTO employees (name,area,district,phone,email,birthday,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [name,area,district,phone,email,birthday,meta||'',created_at]);
+        console.log('Employees POST:', { name, area, district, phone, email, birthday });
+        r = await run(`INSERT INTO employees (name,area,district,phone,email,birthday,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [name,area,district,phone,email,birthday,meta||'',created_at]);
       } else {
         const { name, email, phone, birthday, meta } = req.body;
-          r = await run(`INSERT INTO ${entity} (name,email,phone,birthday,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6)`, [name,email,phone,birthday,meta||'',created_at]);
+        console.log('Other entity POST:', { entity, name, email, phone, birthday });
+        r = await run(`INSERT INTO ${entity} (name,email,phone,birthday,meta,created_at) VALUES ($1,$2,$3,$4,$5,$6)`, [name,email,phone,birthday,meta||'',created_at]);
       }
       res.json({ id: r.lastID });
     } catch (err) {
-      console.error(err && err.stack ? err.stack : err);
+      console.error('POST error:', err && err.stack ? err.stack : err);
       res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
     }
   });
