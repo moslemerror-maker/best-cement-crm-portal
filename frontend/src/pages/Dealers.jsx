@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import { exportToExcel, exportToCSV } from '../utils/exportUtils'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
@@ -132,6 +133,10 @@ export default function Dealers(){
 
         <section style={{marginTop:20}} className="birthday-section">
           <h2>{entityType === 'dealers' ? 'Dealers List' : 'Sub Dealers List'}</h2>
+          <div style={{marginBottom:12, display:'flex', gap:8}}>
+            <button className="gold-btn" onClick={()=>exportToExcel(list, `${entityType === 'dealers' ? 'Dealers' : 'SubDealers'}_${new Date().toISOString().slice(0,10)}.xlsx`)}>Export to Excel</button>
+            <button className="gold-btn" onClick={()=>exportToCSV(list, `${entityType === 'dealers' ? 'Dealers' : 'SubDealers'}_${new Date().toISOString().slice(0,10)}.csv`)}>Export to CSV</button>
+          </div>
           {editingId && (
             <div style={{marginBottom:20, padding:15, backgroundColor:'#0f3b61', borderRadius:8}}>
               <h3 style={{marginTop:0, color:'#d4af37'}}>Edit Entry</h3>
