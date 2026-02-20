@@ -42,7 +42,11 @@ export default function Dealers(){
       const r = await apiClient(token).get(`${API}/${entityType}`)
       setList(r.data)
       setForm({name:'',address:'',phone:'',email:'',district:'',sales_promoter:'',dob:'',anniversary:'',birthday:'',dealer_id:'',area:'',potential:''})
-    }catch(err){console.error(err)}
+      alert('Entry added successfully!')
+    }catch(err){
+      console.error(err)
+      alert('Error: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+    }
   }
 
   function startEdit(item){

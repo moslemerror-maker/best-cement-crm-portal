@@ -39,7 +39,11 @@ export default function Employees(){
       setList(r.data)
       setForm({name:'',area:'',district:'',phone:'',email:'',birthday:'',photoData:''})
       setPreview(null)
-    }catch(err){console.error(err)}
+      alert('Employee added successfully!')
+    }catch(err){
+      console.error(err)
+      alert('Error: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+    }
   }
 
   function startEdit(item){
