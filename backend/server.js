@@ -412,12 +412,21 @@ async function start() {
     const days = parseInt(req.query.days || '7', 10);
     try {
       const results = [];
-      for (const e of ALLOWED_ENTITIES) {
+      
+      // Get birthdays from dealers (use 'dob' column)
+      const dealerRows = await all(`SELECT id,name,dob as birthday,phone,email FROM dealers WHERE dob IS NOT NULL AND dob != ''`);
+      for (const r of dealerRows) {
+        results.push({ entity: 'dealers', ...r });
+      }
+      
+      // Get birthdays from other entities (use 'birthday' column)
+      for (const e of ['subdealers','employees','promoters']) {
         const rows = await all(`SELECT id,name,birthday,phone,email FROM ${e} WHERE birthday IS NOT NULL AND birthday != ''`);
         for (const r of rows) {
           results.push({ entity: e, ...r });
         }
       }
+      
       // compute upcoming birthdays
       const today = new Date();
       function nextBirthdayDate(bday) {
