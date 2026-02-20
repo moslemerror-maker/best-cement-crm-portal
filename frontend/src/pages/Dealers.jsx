@@ -47,7 +47,18 @@ export default function Dealers(){
 
   function startEdit(item){
     setEditingId(item.id)
-    setEditForm({...item})
+    // Convert ISO dates to YYYY-MM-DD format for input type="date"
+    const converted = {...item}
+    if (item.dob && typeof item.dob === 'string') {
+      converted.dob = item.dob.split('T')[0]
+    }
+    if (item.anniversary && typeof item.anniversary === 'string') {
+      converted.anniversary = item.anniversary.split('T')[0]
+    }
+    if (item.birthday && typeof item.birthday === 'string') {
+      converted.birthday = item.birthday.split('T')[0]
+    }
+    setEditForm(converted)
   }
 
   async function saveEdit(){
