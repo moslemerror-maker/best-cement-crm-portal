@@ -371,7 +371,8 @@ async function start() {
       res.json({ id: r.lastID });
     } catch (err) {
       console.error('POST error:', err && err.stack ? err.stack : err);
-      res.status(500).json({ error: 'Server error', detail: err && err.message ? err.message : String(err) });
+      const msg = err && err.message ? err.message : String(err);
+      res.status(500).json({ error: 'Server error: ' + msg });
     }
   });
 

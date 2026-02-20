@@ -41,8 +41,9 @@ export default function Employees(){
       setPreview(null)
       alert('Employee added successfully!')
     }catch(err){
-      console.error(err)
-      alert('Error: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+      console.error('Submit error:', err)
+      const errMsg = err.response?.data?.error || err.message || 'Unknown error'
+      alert('Error: ' + errMsg)
     }
   }
 

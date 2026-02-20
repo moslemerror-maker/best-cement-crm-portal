@@ -44,8 +44,9 @@ export default function Dealers(){
       setForm({name:'',address:'',phone:'',email:'',district:'',sales_promoter:'',dob:'',anniversary:'',birthday:'',dealer_id:'',area:'',potential:''})
       alert('Entry added successfully!')
     }catch(err){
-      console.error(err)
-      alert('Error: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+      console.error('Submit error:', err)
+      const errMsg = err.response?.data?.error || err.message || 'Unknown error'
+      alert('Error: ' + errMsg)
     }
   }
 
@@ -78,7 +79,11 @@ export default function Dealers(){
       setList(r.data)
       setEditingId(null)
       setEditForm({})
-    }catch(err){console.error(err)}
+      alert('Changes saved successfully!')
+    }catch(err){
+      console.error('Edit error:', err)
+      alert('Error saving: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+    }
   }
 
   async function deleteItem(id){
@@ -87,7 +92,11 @@ export default function Dealers(){
       await apiClient(token).delete(`${API}/${entityType}/${id}`)
       const r = await apiClient(token).get(`${API}/${entityType}`)
       setList(r.data)
-    }catch(err){console.error(err)}
+      alert('Item deleted successfully!')
+    }catch(err){
+      console.error('Delete error:', err)
+      alert('Error deleting: ' + (err.response?.data?.error || err.message || 'Unknown error'))
+    }
   }
 
   return (
