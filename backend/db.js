@@ -12,7 +12,12 @@ async function run(sql, params = []) {
     let q = sql;
     if (isInsert && !/RETURNING\s+id/i.test(sql)) q = sql + ' RETURNING id';
     const res = await client.query(q, params);
-    if (isInsert) return { lastID: res.rows[0].id };
+    if (isInsert) {
+      if (!res.rows || res.rows.length === 0) {
+        throw new Error('INSERT failed: no rows returned');
+      }
+      return { lastID: res.rows[0].id };
+    }
     return res;
   } finally {
     client.release();
