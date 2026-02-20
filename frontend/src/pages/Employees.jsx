@@ -12,6 +12,8 @@ export default function Employees(){
   const [list,setList] = useState([])
   const [form,setForm] = useState({name:'',area:'',district:'',phone:'',email:'',birthday:'',photoData:''})
   const [preview,setPreview] = useState(null)
+  const [editingId,setEditingId] = useState(null)
+  const [editForm,setEditForm] = useState({})
 
   useEffect(()=>{ if (!token) return; apiClient(token).get(`${API}/employees`).then(r=>setList(r.data)).catch(console.error)},[token])
 
@@ -36,6 +38,38 @@ export default function Employees(){
       setList(r.data)
       setForm({name:'',area:'',district:'',phone:'',email:'',birthday:'',photoData:''})
       setPreview(null)
+    }catch(err){console.error(err)}
+  }
+
+  function startEdit(item){
+    setEditingId(item.id)
+    setEditForm({
+      id: item.id,
+      name: item.name || '',
+      area: item.area || '',
+      district: item.district || '',
+      phone: item.phone || '',
+      email: item.email || '',
+      birthday: item.birthday ? String(item.birthday).slice(0,10) : ''
+    })
+  }
+
+  async function saveEdit(){
+    if (!editingId) return
+    try{
+      await apiClient(token).put(`${API}/employees/${editingId}`, {
+        name: editForm.name,
+        area: editForm.area,
+        district: editForm.district,
+        phone: editForm.phone,
+        email: editForm.email,
+        birthday: editForm.birthday,
+        meta: ''
+      })
+      const r = await apiClient(token).get(`${API}/employees`)
+      setList(r.data)
+      setEditingId(null)
+      setEditForm({})
     }catch(err){console.error(err)}
   }
 
@@ -73,9 +107,31 @@ export default function Employees(){
 
         <section style={{marginTop:20}} className="birthday-section">
           <h2>Employees List</h2>
+          {editingId && (
+            <div style={{marginBottom:20, padding:15, backgroundColor:'#0f3b61', borderRadius:8}}>
+              <h3 style={{marginTop:0, color:'#d4af37'}}>Edit Employee</h3>
+              <div className="form-grid login-box">
+                <div className="field"><label>Name</label><input value={editForm.name || ''} onChange={e=>setEditForm({...editForm,name:e.target.value})} /></div>
+                <div className="field"><label>Date of Birth</label><input type="date" value={editForm.birthday || ''} onChange={e=>setEditForm({...editForm,birthday:e.target.value})} /></div>
+                <div className="field"><label>Area</label><input value={editForm.area || ''} onChange={e=>setEditForm({...editForm,area:e.target.value})} /></div>
+                <div className="field"><label>District</label><input value={editForm.district || ''} onChange={e=>setEditForm({...editForm,district:e.target.value})} /></div>
+                <div className="field"><label>Mobile</label><input value={editForm.phone || ''} onChange={e=>setEditForm({...editForm,phone:e.target.value})} /></div>
+                <div className="field"><label>Email</label><input value={editForm.email || ''} onChange={e=>setEditForm({...editForm,email:e.target.value})} /></div>
+                <div style={{gridColumn:'1 / -1',display:'flex',justifyContent:'flex-end',gap:10}}>
+                  <button className="gold-btn" onClick={saveEdit}>Save</button>
+                  <button className="gold-btn" onClick={()=>{setEditingId(null);setEditForm({})}}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
           <ul className="birthday-list">
             {list.map(d=> (
-              <li key={d.id}><strong>{d.name}</strong> — {d.area} — {d.district} — {d.phone}</li>
+              <li key={d.id} className="gold-hover" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div><strong>{d.name}</strong> — {d.area} — {d.district} — {d.phone}</div>
+                <div style={{display:'flex',gap:8}}>
+                  <button className="gold-btn" onClick={()=>startEdit(d)}>Edit</button>
+                </div>
+              </li>
             ))}
           </ul>
         </section>
